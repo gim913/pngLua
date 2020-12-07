@@ -78,6 +78,37 @@ function PLTE:getColor(index)
 	return self.colors[index]
 end
 
+ITXT = Chunk:extends()
+ITXT.__name = "ITXT"
+
+function ITXT:__init(chunk)
+	self.super.__init(self, chunk)
+	local len = chunk.length
+	self.data = nil
+
+	-- only handle comments
+	if len < 12 then return end
+
+	local stream = chunk:getDataStream()
+	keyword = stream:readChars(7)
+	if keyword ~= "Comment" then return end
+
+	local _ = stream:readByte()
+	local compressionFlag = stream:readByte()
+	local compressionMethod =  stream:readByte()
+	-- language tag
+	_ = stream:readByte()
+	-- translated keyword
+	_ = stream:readByte()
+
+	self.data = stream:readChars(len - 7 - 5)
+	if compressionFlag then
+		local output = ""
+		deflate.inflate_zlib({input = self.data, output = function(byte) output = output .. string.char(byte) end, disable_crc = false})
+		self.data = output
+	end
+end
+
 Pixel = class()
 Pixel.__name = "Pixel"
 Pixel.R = 0
@@ -246,11 +277,14 @@ function pngImage:__init(path, progCallback)
 	local ihdr = {}
 	local plte = {}
 	local idat = {}
+	local itxt = {}
 	local num = 1
 	while true do
 		ch = Chunk(str)
+		print(ch.name)
 		if ch.name == "IHDR" then ihdr = IHDR(ch) end
 		if ch.name == "PLTE" then plte = PLTE(ch) end
+		if ch.name == "iTXt" then itxt = ITXT(ch) end
 		if ch.name == "IDAT" then idat[num] = IDAT(ch) num = num+1 end
 		if ch.name == "IEND" then break end
 	end
@@ -258,6 +292,8 @@ function pngImage:__init(path, progCallback)
 	self.height = ihdr.height
 	self.depth = ihdr.bitDepth
 	self.colorType = ihdr.colorType
+	self.plte = plte
+	self.itxt = itxt
 
 	local dataStr = ""
 	for k,v in pairs(idat) do dataStr = dataStr .. v.data end
