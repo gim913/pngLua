@@ -22,7 +22,7 @@ function Stream:bytesToNum(bytes)
 end
 
 function Stream:__init(param)
-    local str = ""	
+    local str = ""
     if (param.inputF ~= nil) then
 	str = io.open(param.inputF, "rb"):read("*all")
     end
@@ -31,8 +31,8 @@ function Stream:__init(param)
     end
 
     for i=1,#str do
-	self.data[i] = str:byte(i, i)
-    end
+		self.data[i] = str:byte(i, i)
+	end
 end
 
 function Stream:seek(amount)
@@ -48,13 +48,14 @@ end
 
 function Stream:readChars(num)
 	if self.position <= 0 then self:seek(1) return nil end
-	local str = ""
-	local i = 1
-	while i <= num do
-		str = str .. self:readChar()
-		i = i + 1
+
+	local data = self:readBytes(num)
+	local bytearr = {}
+	for _, v in ipairs(data) do
+		table.insert(bytearr, string.char(v))
 	end
-	return str, i-1
+	local str = table.concat(bytearr)
+	return str, #str
 end
 
 function Stream:readChar()
